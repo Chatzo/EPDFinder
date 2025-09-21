@@ -1,26 +1,55 @@
 ﻿@{
-    ViewData["Title"] = "Home Page";
+    ViewData["Title"] = "EPD Finder Test";
 }
+<div class="container mt-4">
+    <h1>EPD Finder — Test</h1>
 
-@{
-    ViewData["Title"] = "EPD Finder";
-}
+    <form id="f" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label class="form-label"><strong>E-nummer</strong> (comma/space/newline)</label>
+            <textarea name="text" class="form-control" rows="6" placeholder="0008680, 1234567"></textarea>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">or Excel (.xlsx) — first column</label>
+            <input type="file" name="file" class="form-control" accept=".xlsx,.xls" />
+        </div>
+        <button class="btn btn-primary">Hämta EPD-länkar</button>
+    </form>
 
-<h1 class="text-center mb-5">EPD Finder</h1>
-<form id="epdForm" enctype="multipart/form-data" class="mb-3">
-    <label>Ladda upp fil (Excel/CSV):</label><br />
-    <input type="file" name="file" accept=".csv,.xlsx" /><br /><br />
-
-    <label>Eller ange E-nummer (radbrytning, komma eller semikolon):</label><br />
-    <textarea name="eNumbers" rows="5" style="width:50%;" placeholder="0017720
-0000820
-0055270">
-</textarea>
-    <br />
-    <button type="submit">Sök EPD-länkar</button>
-</form>
-<div class="mt-5">
     <hr />
-    <div id="results"></div>
+    <div id="out" style="display:none">
+        <h3>Resultat</h3>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead><tr><th>E-nummer</th><th>Status</th><th>Produkt</th><th>EPD</th></tr></thead>
+                <tbody id="tb"></tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
+<script>
+    const f = document.getElementById('f');
+    const out = document.getElementById('out');
+    const tb = document.getElementById('tb');
+
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const fd = new FormData(f);
+      const r = await fetch('/api/epd/lookup', { method: 'POST', body: fd });
+      if (!r.ok) { alert('Request failed'); return; }
+      const data = await r.json();
+      tb.innerHTML = '';
+      (data.items || data.Items || []).forEach(it => {
+        const epds = (it.epdLinks || it.EpdLinks || []).map(h => `<div><a href="${h}" target="_blank" rel="noopener">EPD PDF</a></div>`).join('') || '<i>–</i>';
+        const prod = (it.productUrl || it.ProductUrl) ? `<a href="${it.productUrl || it.ProductUrl}" target="_blank" rel="noopener">Öppna produkt</a>` : '<i>–</i>';
+        tb.insertAdjacentHTML('beforeend', `<tr>
+          <td>${it.number || it.Number}</td>
+          <td>${it.status || it.Status}</td>
+          <td>${prod}</td>
+          <td>${epds}</td>
+        </tr>`);
+      });
+      out.style.display = 'block';
+    });
+</script>
